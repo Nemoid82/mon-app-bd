@@ -7,7 +7,7 @@ import io
 st.set_page_config(page_title="BD Ligne Claire Generator", layout="centered")
 
 st.title("🎨 Créateur de BD Ligne Claire")
-st.caption("Conçu pour iPhone — Propulsé par Imagen via Gemini API")
+st.caption("Conçu pour iPhone — Propulsé par Google GenAI")
 
 st.sidebar.header("🔑 Configuration")
 api_key = st.sidebar.text_input("Clé API Gemini", type="password")
@@ -39,8 +39,8 @@ if st.button("🪄 Générer la Planche BD", type="primary"):
     if not api_key:
         st.error("Renseigne ta clé API dans le panneau latéral.")
     else:
-        # Client configuré sur la version d'API v1
-        client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+        # Initialisation du client avec la nouvelle SDK
+        client = genai.Client(api_key=api_key)
 
         generated_panels = []
         progress_bar = st.progress(0)
@@ -52,9 +52,9 @@ if st.button("🪄 Générer la Planche BD", type="primary"):
             full_prompt = f"{style_prompt} Detailed scene: {desc if desc else 'A quiet panel'}"
             
             try:
-                # Modèle Imagen 3 standard
+                # Appel de la génération d'image via l'API Imagen 3 mise à jour
                 result = client.models.generate_images(
-                    model='imagen-3.0-generate-001',
+                    model='imagen-3.0-generate-002',
                     prompt=full_prompt,
                     config=types.GenerateImagesConfig(
                         number_of_images=1,
@@ -63,13 +63,17 @@ if st.button("🪄 Générer la Planche BD", type="primary"):
                     )
                 )
                 
-                for generated_image in result.generated_images:
-                    image_bytes = generated_image.image.image_bytes
-                    panel_img = Image.open(io.BytesIO(image_bytes))
-                    generated_panels.append(panel_img)
+                if result.generated_images:
+                    for generated_image in result.generated_images:
+                        image_bytes = generated_image.image.image_bytes
+                        panel_img = Image.open(io.BytesIO(image_bytes))
+                        generated_panels.append(panel_img)
+                else:
+                    raise ValueError("Aucune image renvoyée par l'API")
 
             except Exception as e:
                 st.error(f"Erreur case {idx+1}: {e}")
+                # Création d'un carré gris propre avec du texte si la case échoue
                 fallback = Image.new("RGB", (600, 450), color=(220, 220, 220))
                 generated_panels.append(fallback)
 
@@ -77,6 +81,7 @@ if st.button("🪄 Générer la Planche BD", type="primary"):
 
         status_text.text("Assemblage du gaufrier...")
 
+        # Dimensions et assemblage de la planche
         panel_w, panel_h = 600, 450
         page_w = (cases_per_strip * panel_w) + ((cases_per_strip - 1) * gutter_size) + (2 * border_size)
         page_h = (num_strips * panel_h) + ((num_strips - 1) * gutter_size) + (2 * border_size)
@@ -94,9 +99,9 @@ if st.button("🪄 Générer la Planche BD", type="primary"):
                     panel_idx += 1
 
         status_text.success("Planche générée !")
-        st.image(comic_page, caption="Ta planche finale BD", use_column_width=True)
+        # Correction de la fonction d'affichage Streamlit
+        st.image(comic_page, caption="Ta planche finale BD", use_container_width=True)
 
         buf = io.BytesIO()
         comic_page.save(buf, format="PNG")
         st.download_button("📥 Télécharger la planche", data=buf.getvalue(), file_name="planche_bd.png", mime="image/png")
-
